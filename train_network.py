@@ -5,28 +5,43 @@ import matplotlib.pyplot as plt
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
-signal_length = 2500
-batch_size = 512
+import random
+import sys
+batch_size = 128
 
 ecg_data =np.loadtxt('processed_data/ecg.csv', delimiter=',',dtype=np.float32)
-rr_data = np.loadtxt('processed_data/rr.csv', delimiter=',',dtype=np.float32)
+heartrate_data = np.loadtxt('processed_data/rr.csv', delimiter=',',dtype=np.float32)
 
-ecg_data_train = torch.from_numpy(ecg_data[:,signal_length//2:])
-ecg_data_test = torch.from_numpy(ecg_data[:,:signal_length//2])
-rr_data_train = torch.from_numpy(rr_data[:,signal_length//2:])
-rr_data_test = torch.from_numpy(rr_data[:,:signal_length//2])
+signal_length = ecg_data.shape[1]//2
+ecg_test_split = int(ecg_data.shape[0]*0.8)
+heartrate_test_split = int(heartrate_data.shape[0]*0.8)
 
-ecg_dl = DataLoader(TensorDataset(ecg_data_train, ecg_data_test), shuffle=False, batch_size=batch_size,drop_last=True)
-rr_dl = DataLoader(TensorDataset(rr_data_train, rr_data_test), shuffle=False, batch_size=batch_size,drop_last=True)
+ecg_data_train_input = torch.from_numpy(ecg_data[:ecg_test_split,signal_length:])
+ecg_data_train_output = torch.from_numpy(ecg_data[:ecg_test_split,:signal_length])
+ecg_data_test_input = torch.from_numpy(ecg_data[ecg_test_split:,signal_length:])
+ecg_data_test_output = torch.from_numpy(ecg_data[ecg_test_split:,:signal_length])
 
-model = GNN(signal_length=signal_length//2)
+heartrate_data_train_input = torch.from_numpy(heartrate_data[:heartrate_test_split,signal_length:])
+heartrate_data_train_output = torch.from_numpy(heartrate_data[:heartrate_test_split,:signal_length])
+heartrate_data_test_input = torch.from_numpy(heartrate_data[heartrate_test_split:,signal_length:])
+heartrate_data_test_output = torch.from_numpy(heartrate_data[heartrate_test_split:,:signal_length])
+
+if ecg_data_test_input.shape[0] <= batch_size or heartrate_data_test_input.shape[0] <= batch_size:
+    print("batch size too large")
+    print(f"batch size: {batch_size}")
+    print(f"HEARTRATE:{heartrate_data_test_input.shape[0]}")
+    print(f"ECG:{ecg_data_test_input.shape[0]}")
+    sys.exit(1)
+ecg_dl = DataLoader(TensorDataset(ecg_data_train_input, ecg_data_train_output), shuffle=False, batch_size=batch_size,drop_last=True)
+rr_dl = DataLoader(TensorDataset(heartrate_data_train_input, heartrate_data_train_output), shuffle=False, batch_size=batch_size,drop_last=True)
+
+model = GNN(signal_length=signal_length)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 device = "cuda"
 model = model.to(device)
-"""
-# Training loop
+
 epochs = 500
 for epoch in range(epochs):
     model.train()
@@ -52,27 +67,32 @@ for epoch in range(epochs):
     print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss / len(ecg_dl):.4f}")
 
 torch.save(model.state_dict(), 'model.pth')
-"""
-model = GNN(signal_length=signal_length//2).cuda()
+
+
+model = GNN(signal_length=signal_length).cuda()
 model.load_state_dict(torch.load('model.pth', weights_only=True))
 
-ecg_train, ecg_test = next(iter(ecg_dl))
-rr_train, rr_test = next(iter(rr_dl))
+test_wave_ecg = random.randrange(ecg_test_split//4)
+test_wave_heartrate = random.randrange(heartrate_test_split//4)
 
-ecg_pred, rr_pred = model(ecg_train.cuda(), rr_train.cuda())
-fig = plt.figure()
-plt.plot(ecg_pred[0,:].cpu().detach(), label='prediction')
-plt.plot(ecg_test[0,:].cpu().detach(), label='ground truth')
-plt.legend()
-plt.title("ECG output")
-plt.savefig('ecg_pred.png')
-plt.show()
+ecg_pred, heartrate_pred = model(ecg_data_test_input[test_wave_ecg,:].unsqueeze(0).cuda(),
+                                 heartrate_data_test_input[test_wave_heartrate,:].unsqueeze(0).cuda())
 
+_, axes = plt.subplots(2,1, figsize=(15,7), layout='constrained')
+axes[0].plot(range(signal_length), ecg_data_test_input[test_wave_ecg,:].squeeze(), label='Input from Validation Set')
+axes[0].plot(range(signal_length,signal_length*2), ecg_pred.cpu().detach().squeeze(), label='Prediction from Validation Set')
+axes[0].plot(range(signal_length,signal_length*2), ecg_data_test_output[test_wave_ecg,:].cpu().detach(), label='Ground Truth from Validation Set')
+axes[0].set_xticks(range(0,5001,500), range(0,11))
+axes[0].set_xlabel("Time (s)")
+axes[0].legend()
+axes[0].set_title("ECG Prediction vs Ground Truth")
 
-fig = plt.figure()
-plt.plot(rr_pred[0,:].cpu().detach(), label='prediction')
-plt.plot(rr_test[0,:].cpu().detach(), label='ground truth')
-plt.legend()
-plt.title("Heartrate output")
-plt.savefig('heartrate_pred.png')
+axes[1].plot(range(signal_length), heartrate_data_test_input[test_wave_heartrate,:].squeeze(), label='Input from Validation Set')
+axes[1].plot(range(signal_length,signal_length*2), heartrate_pred.cpu().detach().squeeze(), label='Prediction from Validation Set')
+axes[1].plot(range(signal_length,signal_length*2), heartrate_data_test_output[test_wave_heartrate,:].cpu().detach(), label='Ground Truth from Validation Set')
+axes[1].set_xticks(range(0,5001,500), range(0,251,25))
+axes[1].set_xlabel("Time (s)")
+axes[1].legend()
+axes[1].set_title("Heartrate Prediction vs Ground Truth")
+plt.savefig('feed_forward_fusion_output.png')
 plt.show()

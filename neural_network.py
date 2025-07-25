@@ -4,7 +4,7 @@ import torch.nn as nn
 
 # Sub-network A
 class heartrate_net(nn.Module):
-    def __init__(self, input_dim=3000):
+    def __init__(self, input_dim):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 2048),
@@ -21,7 +21,7 @@ class heartrate_net(nn.Module):
 
 # Sub-network B
 class ecg_net(nn.Module):
-    def __init__(self, input_dim=3000):
+    def __init__(self, input_dim):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 2048),

@@ -3,11 +3,11 @@ Mira Welner
 June 2025
 
 This script loads Dr Dey's heartrate data and reports the heartrate (60k/rr interval) as well as the QT intervals.
-It then creates a training table of length=6000 for each snip for both RR and QT. It is recorded at 10Hz so this represents
-600 seconds, or 10 minutes.
+It then creates a training table of length=5000 for each snip for both RR and QT. It is recorded at 20Hz so this represents
+250 seconds, or about 4.5 minutes.
 
-It then loads Dr Cong's ECG and PPG data and proccesses it similarly, with snips of 6000 datapoints each. However the ECG hz is
-set at 500Hz, and so the PPG is upsampled to 500hz. This means that the snips are 30 seconds each.
+It then loads Dr Cong's ECG and PPG data and proccesses it similarly, with snips of 5000 datapoints each. However the ECG hz is
+set at 500Hz, and so the PPG is upsampled to 500hz. This means that the snips are 10 seconds each.
 """
 
 import numpy as np
@@ -15,9 +15,9 @@ from scipy.interpolate import interp1d
 from glob import glob
 import itertools
 
-frac_sec = 10 #the x values are 10th of a second
 ecg_hz = 500
-snip_len = 2500
+heartrate_hz = 20
+snip_len = 5000
 
 def zscore_normalize(x):
     mean = np.mean(x, keepdims=True)
@@ -46,11 +46,11 @@ def process_qt(qt_distance_ms):
 def proccess_heartrate_file(rr_distance_ms, qt_distance_ms,timestamps):
     qt_times_s = np.array([s / 1000 for s in itertools.accumulate(rr_distance_ms)], dtype=np.float64).flatten()
     f_interp_rr = interp1d(timestamps, rr_distance_ms, kind='linear')
-    x_rr = np.arange(timestamps.min(), timestamps.max()-1, 1/frac_sec)
+    x_rr = np.arange(timestamps.min(), timestamps.max()-1, 1/heartrate_hz)
     interpolated_rr = f_interp_rr(x_rr)
 
     f_interp_qt = interp1d(qt_times_s, qt_distance_ms, kind='linear')
-    x_qt = np.arange(qt_times_s.min(), qt_times_s.max()-1, 1/frac_sec)
+    x_qt = np.arange(qt_times_s.min(), qt_times_s.max()-1, 1/heartrate_hz)
     interpolated_qt = f_interp_qt(x_qt)
     return process_rr(interpolated_rr), process_qt(interpolated_qt)
 
