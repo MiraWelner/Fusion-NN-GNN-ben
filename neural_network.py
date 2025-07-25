@@ -37,8 +37,9 @@ class ecg_net(nn.Module):
         return self.net(x)
 
 class combo_net(nn.Module):
-    def __init__(self, output_len=3000):
+    def __init__(self, output_len):
         super().__init__()
+        self.output_len = output_len
         self.hr_proj = nn.Sequential(
             nn.Linear(256, 256),
             nn.GELU()
@@ -55,15 +56,17 @@ class combo_net(nn.Module):
             nn.GELU(),
             nn.Linear(1024, 2048),
             nn.GELU(),
-            nn.Linear(2048, output_len)
+            nn.Linear(2048, output_len*2)
         )
 
     def forward(self, a_out, b_out):
         a = self.hr_proj(a_out)
         b = self.ecg_proj(b_out)
-        fused = torch.cat([a, b], dim=1)  # [B, 32]
-        output = self.fusion(fused)       # [B, 3000]
-        return output, output  # return both outputs for now
+        fused = torch.cat([a, b], dim=1)
+        output = self.fusion(fused)
+        ecg_output = output[:,self.output_len:]
+        rr_output = output[:,:self.output_len]
+        return ecg_output, rr_output
 
 class GNN(nn.Module):
     def __init__(self, signal_length):
@@ -73,6 +76,6 @@ class GNN(nn.Module):
         self.fusion = combo_net(output_len=signal_length)
 
     def forward(self, x1, x2):
-        out_a = self.a(x1)  # [B, 16]
-        out_b = self.b(x2)  # [B, 16]
-        return self.fusion(out_a, out_b)  # [B, 3000], [B, 3000]
+        out_a = self.a(x1)
+        out_b = self.b(x2)
+        return self.fusion(out_a, out_b)
