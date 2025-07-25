@@ -17,7 +17,12 @@ import itertools
 
 frac_sec = 10 #the x values are 10th of a second
 ecg_hz = 500
-snip_len = 6000
+snip_len = 2500
+
+def zscore_normalize(x):
+    mean = np.mean(x, keepdims=True)
+    std = np.std(x, keepdims=True)
+    return (x - mean) / (std + 1e-8)
 
 def process_rr(rr_distance_ms):
     """
@@ -25,7 +30,7 @@ def process_rr(rr_distance_ms):
     of
     """
     bpm = 60000/rr_distance_ms
-    scaled_heartrate = bpm/75 -1
+    scaled_heartrate = zscore_normalize(bpm)
     num_samples = len(scaled_heartrate)//snip_len
     scaled_heartrate_trimmed = scaled_heartrate[:num_samples*snip_len]
     heartrate_snips = scaled_heartrate_trimmed.reshape(num_samples, snip_len)
@@ -65,13 +70,13 @@ for i in range(2,5): #no ppg data for patient 1
     interpolated_ppg_for_patient = np.interp(np.linspace(0,1,len(ecg_file)), np.linspace(0,1,len(ppg_for_patient)), ppg_for_patient)
     all_ppg_data = np.append(all_ppg_data,interpolated_ppg_for_patient)
 
-all_ecg_data = 2 * (all_ecg_data - all_ecg_data.min()) / (all_ecg_data.max() - all_ecg_data.min() + 1e-8) - 1
+all_ecg_data = zscore_normalize(all_ecg_data)
 num_ecg_samples = len(all_ecg_data)//snip_len
 ecg_trimmed = all_ecg_data[:num_ecg_samples*snip_len]
 ecg_snips = ecg_trimmed.reshape(num_ecg_samples, snip_len)
 np.savetxt("processed_data/ecg.csv", ecg_snips, delimiter = ",")
 
-all_ppg_data = 2 * (all_ppg_data - all_ppg_data.min()) / (all_ppg_data.max() - all_ppg_data.min() + 1e-8) - 1
+all_ppg_data = zscore_normalize(all_ppg_data)
 num_ppg_samples = len(all_ppg_data)//snip_len
 ppg_trimmed = all_ppg_data[:num_ppg_samples*snip_len]
 ppg_snips = ppg_trimmed.reshape(num_ppg_samples, snip_len)
