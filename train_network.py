@@ -42,6 +42,7 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 device = "cuda"
 model = model.to(device)
 
+"""
 epochs = 500
 for epoch in range(epochs):
     model.train()
@@ -67,7 +68,7 @@ for epoch in range(epochs):
     print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss / len(ecg_dl):.4f}")
 
 torch.save(model.state_dict(), 'model.pth')
-
+"""
 
 model = GNN(signal_length=signal_length).cuda()
 model.load_state_dict(torch.load('model.pth', weights_only=True))
@@ -78,16 +79,18 @@ test_wave_heartrate = random.randrange(heartrate_test_split//4)
 ecg_pred, heartrate_pred = model(ecg_data_test_input[test_wave_ecg,:].unsqueeze(0).cuda(),
                                  heartrate_data_test_input[test_wave_heartrate,:].unsqueeze(0).cuda())
 
-_, axes = plt.subplots(2,1, figsize=(15,7), layout='constrained')
+_, axes = plt.subplots(2,1, figsize=(10,7), layout='constrained')
 axes[0].plot(range(signal_length), ecg_data_test_input[test_wave_ecg,:].squeeze(), label='Input from Validation Set')
 axes[0].plot(range(signal_length,signal_length*2), ecg_pred.cpu().detach().squeeze(), label='Prediction from Validation Set')
 axes[0].plot(range(signal_length,signal_length*2), ecg_data_test_output[test_wave_ecg,:].cpu().detach(), label='Ground Truth from Validation Set')
 axes[0].set_xticks(range(0,5001,500), range(0,11))
 axes[0].set_xlabel("Time (s)")
+axes[0].set_ylabel("Scaled Voltage")
 axes[0].legend()
 axes[0].set_title("ECG Prediction vs Ground Truth")
 
 axes[1].plot(range(signal_length), heartrate_data_test_input[test_wave_heartrate,:].squeeze(), label='Input from Validation Set')
+axes[1].set_ylabel("Scaled BPM")
 axes[1].plot(range(signal_length,signal_length*2), heartrate_pred.cpu().detach().squeeze(), label='Prediction from Validation Set')
 axes[1].plot(range(signal_length,signal_length*2), heartrate_data_test_output[test_wave_heartrate,:].cpu().detach(), label='Ground Truth from Validation Set')
 axes[1].set_xticks(range(0,5001,500), range(0,251,25))

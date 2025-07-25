@@ -14,15 +14,15 @@ import numpy as np
 from scipy.interpolate import interp1d
 from glob import glob
 import itertools
+import matplotlib.pyplot as plt
 
 ecg_hz = 500
 heartrate_hz = 20
 snip_len = 5000
 
-def zscore_normalize(x):
-    mean = np.mean(x, keepdims=True)
-    std = np.std(x, keepdims=True)
-    return (x - mean) / (std + 1e-8)
+def scale_data(x:np.ndarray) -> np.ndarray:
+    x_scaled = (x - x.min()) / (x.max() - x.min())
+    return x_scaled
 
 def process_rr(rr_distance_ms):
     """
@@ -30,7 +30,7 @@ def process_rr(rr_distance_ms):
     of
     """
     bpm = 60000/rr_distance_ms
-    scaled_heartrate = zscore_normalize(bpm)
+    scaled_heartrate = scale_data(bpm)
     num_samples = len(scaled_heartrate)//snip_len
     scaled_heartrate_trimmed = scaled_heartrate[:num_samples*snip_len]
     heartrate_snips = scaled_heartrate_trimmed.reshape(num_samples, snip_len)
@@ -60,6 +60,12 @@ all_ppg_data = np.array([])
 for i in range(2,5): #no ppg data for patient 1
     ecg_filename = f'cong_ecg_ppg_data/ecg_signal_{i}.txt'
     ecg_file =np.loadtxt(ecg_filename)
+    if i == 4:
+        ecg_file = np.clip(ecg_file, 8150, 8300)
+    ecg_file = scale_data(ecg_file)
+    fig = plt.figure()
+    plt.plot(ecg_file)
+    plt.show()
     all_ecg_data = np.append(all_ecg_data,ecg_file)
     ppg_for_patient = np.array([])
     for j in range(1,6):
@@ -70,13 +76,11 @@ for i in range(2,5): #no ppg data for patient 1
     interpolated_ppg_for_patient = np.interp(np.linspace(0,1,len(ecg_file)), np.linspace(0,1,len(ppg_for_patient)), ppg_for_patient)
     all_ppg_data = np.append(all_ppg_data,interpolated_ppg_for_patient)
 
-all_ecg_data = zscore_normalize(all_ecg_data)
 num_ecg_samples = len(all_ecg_data)//snip_len
 ecg_trimmed = all_ecg_data[:num_ecg_samples*snip_len]
 ecg_snips = ecg_trimmed.reshape(num_ecg_samples, snip_len)
 np.savetxt("processed_data/ecg.csv", ecg_snips, delimiter = ",")
 
-all_ppg_data = zscore_normalize(all_ppg_data)
 num_ppg_samples = len(all_ppg_data)//snip_len
 ppg_trimmed = all_ppg_data[:num_ppg_samples*snip_len]
 ppg_snips = ppg_trimmed.reshape(num_ppg_samples, snip_len)
