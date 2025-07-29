@@ -7,14 +7,14 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 import random
 import sys
-batch_size = 128
+batch_size = 64
 
 ecg_data =np.loadtxt('processed_data/ecg.csv', delimiter=',',dtype=np.float32)
 heartrate_data = np.loadtxt('processed_data/rr.csv', delimiter=',',dtype=np.float32)
 
 signal_length = ecg_data.shape[1]//2
-ecg_test_split = int(ecg_data.shape[0]*0.8)
-heartrate_test_split = int(heartrate_data.shape[0]*0.8)
+ecg_test_split = int(ecg_data.shape[0]*0.75)
+heartrate_test_split = int(heartrate_data.shape[0]*0.75)
 
 ecg_data_train_input = torch.from_numpy(ecg_data[:ecg_test_split,signal_length:])
 ecg_data_train_output = torch.from_numpy(ecg_data[:ecg_test_split,:signal_length])
@@ -42,9 +42,11 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 device = "cuda"
 model = model.to(device)
 
-"""
-epochs = 500
-for epoch in range(epochs):
+epochs = 0
+l = 100
+
+while l > 0.00005 and epochs < 1000:
+    epochs += 1
     model.train()
     running_loss = 0.0
 
@@ -64,11 +66,11 @@ for epoch in range(epochs):
         optimizer.step()
 
         running_loss += loss.item()
+    l = running_loss / len(ecg_dl)
 
-    print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss / len(ecg_dl):.4f}")
+    print(f"Epoch {epochs}: Loss={l:.4f}")
 
 torch.save(model.state_dict(), 'model.pth')
-"""
 
 model = GNN(signal_length=signal_length).cuda()
 model.load_state_dict(torch.load('model.pth', weights_only=True))
@@ -86,6 +88,7 @@ axes[0].plot(range(signal_length,signal_length*2), ecg_data_test_output[test_wav
 axes[0].set_xticks(range(0,5001,500), range(0,11))
 axes[0].set_xlabel("Time (s)")
 axes[0].set_ylabel("Scaled Voltage")
+axes[0].set_ylim(0,1)
 axes[0].legend()
 axes[0].set_title("ECG Prediction vs Ground Truth")
 
@@ -95,6 +98,7 @@ axes[1].plot(range(signal_length,signal_length*2), heartrate_pred.cpu().detach()
 axes[1].plot(range(signal_length,signal_length*2), heartrate_data_test_output[test_wave_heartrate,:].cpu().detach(), label='Ground Truth from Validation Set')
 axes[1].set_xticks(range(0,5001,500), range(0,251,25))
 axes[1].set_xlabel("Time (s)")
+axes[1].set_ylim(0,1)
 axes[1].legend()
 axes[1].set_title("Heartrate Prediction vs Ground Truth")
 plt.savefig('feed_forward_fusion_output.png')

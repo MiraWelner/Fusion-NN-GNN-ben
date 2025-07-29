@@ -2,35 +2,41 @@ import torch
 import torch.nn as nn
 
 
-# Sub-network A
 class heartrate_net(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 2048),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(2048, 1024),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(1024, 512),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(512, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
+
         )
 
     def forward(self, x):
         return self.net(x)
 
-# Sub-network B
 class ecg_net(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 2048),
-            nn.GELU(),
             nn.Linear(2048, 1024),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(1024, 512),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(512, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
         )
 
     def forward(self, x):
@@ -42,21 +48,20 @@ class combo_net(nn.Module):
         self.output_len = output_len
         self.hr_proj = nn.Sequential(
             nn.Linear(256, 256),
-            nn.GELU()
+            nn.LeakyReLU(),
         )
         self.ecg_proj = nn.Sequential(
             nn.Linear(256, 256),
-            nn.GELU()
+            nn.LeakyReLU(),
         )
 
         self.fusion = nn.Sequential(
             nn.Linear(256 * 2, 512),
-            nn.GELU(),
+            nn.LeakyReLU(),
             nn.Linear(512, 1024),
-            nn.GELU(),
-            nn.Linear(1024, 2048),
-            nn.GELU(),
-            nn.Linear(2048, output_len*2)
+            nn.LeakyReLU(),
+            nn.Linear(1024, output_len*2),
+            nn.LeakyReLU()
         )
 
     def forward(self, a_out, b_out):

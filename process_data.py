@@ -17,7 +17,7 @@ import itertools
 import matplotlib.pyplot as plt
 
 ecg_hz = 500
-heartrate_hz = 20
+heartrate_hz = 10
 snip_len = 5000
 
 def scale_data(x:np.ndarray) -> np.ndarray:
@@ -60,12 +60,15 @@ all_ppg_data = np.array([])
 for i in range(2,5): #no ppg data for patient 1
     ecg_filename = f'cong_ecg_ppg_data/ecg_signal_{i}.txt'
     ecg_file =np.loadtxt(ecg_filename)
-    if i == 4:
-        ecg_file = np.clip(ecg_file, 8150, 8300)
+    # manually trim outliers
+    if i == 2:
+        ecg_file = np.clip(ecg_file, 8145, None)
+    elif i == 3:
+        ecg_file = np.clip(ecg_file, 8170, 8295)
+    elif i == 4:
+        ecg_file = np.clip(ecg_file, 8170, 8290)
     ecg_file = scale_data(ecg_file)
-    fig = plt.figure()
-    plt.plot(ecg_file)
-    plt.show()
+
     all_ecg_data = np.append(all_ecg_data,ecg_file)
     ppg_for_patient = np.array([])
     for j in range(1,6):
